@@ -1,9 +1,26 @@
+'use client';
+
 import Button from '@/lib/components/Button/Button';
+import CameraFrame from '@/lib/components/CameraFrame';
+import { useState } from 'react';
 
 export default function Home() {
+	const [isCameraOpen, setIsCameraOpen] = useState(false);
+
+	const openCamera = () => {
+		setIsCameraOpen(true);
+	};
+
+	const closeCamera = () => {
+		setIsCameraOpen(false);
+	};
+
 	return (
-		<div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-			<Button>Click me</Button>
+		<div className="">
+			<Button className="tat" onClick={openCamera}>
+				Open Camera
+			</Button>
+			{isCameraOpen && <CameraFrame onCloseClick={closeCamera} />}
 		</div>
 	);
 }
