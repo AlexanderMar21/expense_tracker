@@ -15,9 +15,17 @@ const CameraFrame: FunctionComponent<CameraFrameProps> = ({ onCloseClick }) => {
 
 	const [image, setImage] = useState<string | null>(null);
 
+	const facingMode = 'environment';
+	var constraints = {
+		audio: false,
+		video: {
+			facingMode: facingMode,
+		},
+	};
+
 	const startCamera = useCallback(async () => {
 		try {
-			const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+			const stream = await navigator.mediaDevices.getUserMedia(constraints);
 			if (videoRef.current) {
 				videoRef.current.srcObject = stream;
 			}
