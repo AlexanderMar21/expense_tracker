@@ -20,6 +20,8 @@ const CameraFrame: FunctionComponent<CameraFrameProps> = ({ onCloseClick }) => {
 		audio: false,
 		video: {
 			facingMode: facingMode,
+			width: { min: 640, ideal: 320 },
+			height: { min: 360, ideal: 180 },
 		},
 	};
 
@@ -51,28 +53,29 @@ const CameraFrame: FunctionComponent<CameraFrameProps> = ({ onCloseClick }) => {
 				const videoHeight = videoRef.current.videoHeight;
 
 				// Calculate the dimensions and position of the frame to capture
-				const frameSize = Math.min(videoWidth, videoHeight) / 2; // Half of the smaller dimension
-				const startX = (videoWidth - frameSize) / 2;
-				const startY = (videoHeight - frameSize) / 2;
+				const frameSizeX = 160;
+				const frameSizeY = 60;
+				const startX = (videoWidth - frameSizeX) / 2;
+				const startY = (videoHeight - frameSizeY) / 2;
 
 				// Set canvas size to match the frame size
-				canvasRef.current.width = frameSize;
-				canvasRef.current.height = frameSize;
+				canvasRef.current.width = frameSizeX;
+				canvasRef.current.height = frameSizeY;
 
 				// Draw the selected portion of the video onto the canvas
 				context.drawImage(
 					videoRef.current,
 					startX,
 					startY,
-					frameSize,
-					frameSize, // Source rectangle
+					frameSizeX,
+					frameSizeY, // Source rectangle
 					0,
 					0,
-					frameSize,
-					frameSize // Destination rectangle
+					frameSizeX,
+					frameSizeY // Destination rectangle
 				);
 
-				const imageDataUrl = canvasRef.current.toDataURL('image/jpeg');
+				const imageDataUrl = canvasRef.current.toDataURL('image/png');
 				setImage(imageDataUrl);
 				await recognizer(imageDataUrl);
 			}
@@ -118,7 +121,7 @@ const CameraFrame: FunctionComponent<CameraFrameProps> = ({ onCloseClick }) => {
 						className="absolute inset-0 w-full h-full object-cover rounded-xl"
 						aria-label="Camera feed"
 					/>
-					<div className="absolute border-solid border-2 border-indigo-600 h-1/2 w-1/2 transform translate-x-[-50%] translate-y-[-50%] top-[50%] left-[50%]"></div>
+					<div className="absolute border-solid border-2 border-indigo-600 h-1/3 w-1/2 transform translate-x-[-50%] translate-y-[-50%] top-[50%] left-[50%]"></div>
 				</div>
 			) : (
 				<div className="relative  w-[320px] aspect-video bg-gray-200 rounded-lg overflow-hidden">
