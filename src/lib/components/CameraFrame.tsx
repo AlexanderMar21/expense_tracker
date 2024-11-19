@@ -20,8 +20,8 @@ const CameraFrame: FunctionComponent<CameraFrameProps> = ({ onCloseClick }) => {
 		audio: false,
 		video: {
 			facingMode: facingMode,
-			width: { min: 640, ideal: 320 },
-			height: { min: 360, ideal: 180 },
+			width: { exact: 320 },
+			height: { exact: 180 },
 		},
 	};
 
@@ -39,7 +39,7 @@ const CameraFrame: FunctionComponent<CameraFrameProps> = ({ onCloseClick }) => {
 	const recognizer = async (image: ImageLike) => {
 		const worker = await createWorker('eng');
 		const ret = await worker.recognize(image);
-		const words = ret.data.words.flatMap((word) => word.text);
+		const words = ret.data.words.flatMap((word) => word.text).filter((item) => /^[\d,]+(\.\d+)?$/.test(item));
 		setImageWords(words);
 		await worker.terminate();
 	};
