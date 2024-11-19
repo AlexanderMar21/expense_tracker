@@ -1,6 +1,6 @@
 'use client';
 
-import { createRef, useEffect, useState, type FunctionComponent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FunctionComponent } from 'react';
 import Button from './Button/Button';
 import { createWorker, type ImageLike, type Word } from 'tesseract.js';
 
@@ -9,105 +9,134 @@ interface CameraFrameProps {
 }
 
 const CameraFrame: FunctionComponent<CameraFrameProps> = ({ onCloseClick }) => {
-	const width = 320; // We will scale the photo width to this
-	const height = 200;
-	const videoRef = createRef<HTMLVideoElement>();
-	const canvasRef = createRef<HTMLCanvasElement>();
-	const photoRef = createRef<HTMLImageElement>();
-	const [recognizeText, setRecognizeText] = useState<Word[]>();
-	const facingMode = 'environment';
-	var constraints = {
-		audio: false,
-		video: {
-			facingMode: facingMode,
-		},
-	};
+	const videoRef = useRef<HTMLVideoElement>(null);
+	const canvasRef = useRef<HTMLCanvasElement>(null);
+	const [imageWords, setImageWords] = useState<string[]>();
 
-	const initializeStream = () => {
-		navigator?.mediaDevices?.getUserMedia(constraints).then(function success(stream) {
-			if (!videoRef.current) {
-				return;
+	const [image, setImage] = useState<string | null>(null);
+
+	const startCamera = useCallback(async () => {
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+			if (videoRef.current) {
+				videoRef.current.srcObject = stream;
 			}
-			videoRef.current.srcObject = stream;
-			videoRef.current.play();
-			canvasRef.current?.setAttribute('height', `${videoRef.current.height}px`);
-			canvasRef.current?.setAttribute('width', `${videoRef.current.width}px`);
-		});
-	};
+		} catch (err) {
+			console.error('Error accessing the camera', err);
+		}
+	}, []);
 
-	const recognize = async (image: ImageLike) => {
+	const recognizer = async (image: ImageLike) => {
 		const worker = await createWorker('eng');
 		const ret = await worker.recognize(image);
+		const words = ret.data.words.flatMap((word) => word.text);
+		setImageWords(words);
 		await worker.terminate();
-		return ret.data.words;
 	};
 
-	async function takePicture() {
-		const context = canvasRef.current?.getContext('2d');
+	const capturePhoto = useCallback(async () => {
 		if (videoRef.current && canvasRef.current) {
-			canvasRef.current.width = width;
-			canvasRef.current.height = height;
-			context?.drawImage(videoRef.current, 0, 0, canvasRef.current?.width, canvasRef.current?.height);
+			const context = canvasRef.current.getContext('2d');
+			if (context) {
+				// Get the video dimensions
+				const videoWidth = videoRef.current.videoWidth;
+				const videoHeight = videoRef.current.videoHeight;
 
-			const data = canvasRef.current?.toDataURL('image/png');
-			const res = await recognize(data);
-			setRecognizeText(res);
-			photoRef.current?.setAttribute('src', data);
-		} else {
-			clearPhoto();
+				// Calculate the dimensions and position of the frame to capture
+				const frameSize = Math.min(videoWidth, videoHeight) / 2; // Half of the smaller dimension
+				const startX = (videoWidth - frameSize) / 2;
+				const startY = (videoHeight - frameSize) / 2;
+
+				// Set canvas size to match the frame size
+				canvasRef.current.width = frameSize;
+				canvasRef.current.height = frameSize;
+
+				// Draw the selected portion of the video onto the canvas
+				context.drawImage(
+					videoRef.current,
+					startX,
+					startY,
+					frameSize,
+					frameSize, // Source rectangle
+					0,
+					0,
+					frameSize,
+					frameSize // Destination rectangle
+				);
+
+				const imageDataUrl = canvasRef.current.toDataURL('image/jpeg');
+				setImage(imageDataUrl);
+				await recognizer(imageDataUrl);
+			}
 		}
-	}
+		stopCamera();
+	}, []);
 
-	function clearPhoto() {
-		const context = canvasRef.current?.getContext('2d');
-		if (!context || !canvasRef.current) return;
-		context.fillStyle = '#AAA';
-		context.fillRect(0, 0, canvasRef.current?.width, canvasRef.current?.height);
-
-		const data = canvasRef.current?.toDataURL('image/png');
-
-		photoRef.current?.setAttribute('src', data);
-	}
-
-	const stopStream = () => {
+	const stopCamera = () => {
 		if (videoRef.current && videoRef.current.srcObject) {
-			const stream = videoRef.current.srcObject as MediaStream;
-			const tracks = stream.getTracks();
-
-			// Stop all tracks
+			const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
 			tracks.forEach((track) => track.stop());
-
-			// Remove the stream from the video element
-			videoRef.current.srcObject = null;
 		}
 	};
+
+	const resetCapture = useCallback(async () => {
+		setImage(null);
+		setImageWords([]);
+		if (videoRef.current && videoRef.current.srcObject) {
+			await startCamera();
+		}
+	}, []);
 
 	const onCloseBtnClick = () => {
-		stopStream();
+		stopCamera();
 		onCloseClick?.();
 	};
 
 	useEffect(() => {
-		initializeStream();
-	}, []);
+		startCamera();
+
+		return stopCamera;
+	});
 
 	return (
 		<div className="bg-gray-700/50 backdrop-blur fixed inset-0 z-10 flex items-center flex-col gap-6 justify-center">
 			<button onClick={onCloseBtnClick}>X</button>
-			<video
-				style={{ height: `${height}px`, width: `${width}px` }}
-				playsInline
-				muted
-				className="min-w-[340px] min-h-[200px] rounded-xl"
-				ref={videoRef}
-			/>
-			<canvas id="canvas" className="hidden" ref={canvasRef}></canvas>
-			<div>
-				{recognizeText?.map((word, index) => (
-					<span key={word.text + index}>{word.text}</span>
+			{!image ? (
+				<div className="relative w-[320px] aspect-video bg-gray-200 rounded-lg overflow-hidden">
+					<video
+						ref={videoRef}
+						autoPlay
+						playsInline
+						className="absolute inset-0 w-full h-full object-cover rounded-xl"
+						aria-label="Camera feed"
+					/>
+					<div className="absolute border-solid border-2 border-indigo-600 h-1/2 w-1/2 transform translate-x-[-50%] translate-y-[-50%] top-[50%] left-[50%]"></div>
+				</div>
+			) : (
+				<div className="relative  w-[320px] aspect-video bg-gray-200 rounded-lg overflow-hidden">
+					<img
+						src={image}
+						alt="Captured photo"
+						className="absolute inset-0 w-full h-full object-cover rounded-xl"
+					/>
+				</div>
+			)}
+			<canvas ref={canvasRef} className="hidden" width="640" height="480" />
+			<div className="flex items-center justify-center flex-wrap gap-4">
+				{imageWords?.map((word, index) => (
+					<span className="inline-block py-1 px-2 rounded-full bg-indigo-800 text-white" key={word + index}>
+						{word}
+					</span>
 				))}
 			</div>
-			<Button onClick={takePicture}>Take Photo</Button>
+			<div className="flex items-center justify-stretch gap-4">
+				<Button theme="success" onClick={capturePhoto}>
+					Take Photo
+				</Button>
+				<Button theme="secondary" onClick={resetCapture}>
+					Retake
+				</Button>
+			</div>
 		</div>
 	);
 };
