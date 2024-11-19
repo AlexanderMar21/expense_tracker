@@ -20,8 +20,6 @@ const CameraFrame: FunctionComponent<CameraFrameProps> = ({ onCloseClick }) => {
 		audio: false,
 		video: {
 			facingMode: facingMode,
-			width: { exact: 320 },
-			height: { exact: 180 },
 		},
 	};
 
