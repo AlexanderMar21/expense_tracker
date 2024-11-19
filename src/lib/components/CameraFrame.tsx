@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useRef, useState, type FunctionComponent } from 'react';
-import { createWorker, type ImageLike, type Word } from 'tesseract.js';
+import { useRef, useState, type FunctionComponent } from 'react';
+import { createWorker, type ImageLike } from 'tesseract.js';
 
 interface CameraFrameProps {
 	onCloseClick?: () => void;
@@ -12,7 +12,8 @@ const CameraFrame: FunctionComponent<CameraFrameProps> = ({ onCloseClick }) => {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [imageWords, setImageWords] = useState<string[]>();
 
-	const recognizer = async (image: ImageLike) => {
+	const recognizer = async (image?: ImageLike) => {
+		if (!image) return;
 		const worker = await createWorker('eng');
 		const ret = await worker.recognize(image);
 		const words = ret.data.words.flatMap((word) => word.text).filter((item) => /^[\d,]+(\.\d+)?$/.test(item));
@@ -26,11 +27,12 @@ const CameraFrame: FunctionComponent<CameraFrameProps> = ({ onCloseClick }) => {
 		if (files?.length == 0) {
 			return;
 		}
-		let file = files[0];
+		let file = files?.[0];
+		if (!file) return;
 		const fileReader = new FileReader();
 		fileReader.onload = async function (e) {
 			console.log('Loading image success');
-			await recognizer(e.target?.result);
+			await recognizer(e.target?.result as ImageLike);
 			// document.getElementById("photoTaken").src = e.target?.result;
 		};
 		fileReader.onerror = function () {
@@ -45,13 +47,6 @@ const CameraFrame: FunctionComponent<CameraFrameProps> = ({ onCloseClick }) => {
 			tracks.forEach((track) => track.stop());
 		}
 	};
-
-	const resetCapture = useCallback(async () => {
-		setImageWords([]);
-		if (videoRef.current && videoRef.current.srcObject) {
-			await startCamera();
-		}
-	}, []);
 
 	return (
 		<div className="bg-gray-700/50 backdrop-blur fixed inset-0 z-10 flex items-center flex-col gap-6 justify-center">
