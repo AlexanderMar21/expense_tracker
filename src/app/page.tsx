@@ -1,7 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { RecordForm } from '@/lib/components/RecordForm';
 
 export default function Home() {
-	return <div className="flex flex-col min-h-screen items-center justify-center">App</div>;
+	const categories = [{ id: 'q', name: 'T' }];
+	return (
+		<div className="flex flex-col min-h-screen items-center justify-center">
+			<RecordForm categories={categories} />
+		</div>
+	);
 }
